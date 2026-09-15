@@ -1,0 +1,5 @@
+Hello, and thanks for watching this quick demo. Everything you are hearing right now was generated from a single short recording and a few lines of text.
+
+The voice was cloned from the original clip, and the lip movements were re-rendered to match the new words. You can use this to turn one recording into any number of personalised messages, product walkthroughs, or training videos.
+
+Try changing the script, pick a different tone, and see how quickly a new version comes out.

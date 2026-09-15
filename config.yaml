@@ -1,0 +1,64 @@
+# VedioAvatar configuration.
+# Relative paths are resolved against the repository root.
+# Any value can be overridden per job from the CLI or the API.
+
+paths:
+  data_dir: data            # uploads, job workspaces, outputs
+  models_dir: models        # downloaded checkpoints
+  third_party_dir: third_party
+  envs_dir: envs            # per-model virtual environments
+
+ffmpeg:
+  binary: ""                # empty = auto-detect (PATH, then the static-ffmpeg package)
+  ffprobe: ""
+
+preprocess:
+  max_height: 720           # driver video is downscaled to this height (aspect kept)
+  fps: 25                   # both lip-sync models work at 25 fps
+  max_source_seconds: 60    # source video is trimmed to this before looping
+  reference_seconds: 12     # voice reference clip length fed to the TTS model
+  loudnorm: true            # normalise reference loudness
+  denoise: false            # light FFT denoise of the reference (try if recording is noisy)
+
+tts:
+  backend: chatterbox       # chatterbox | mock
+  model: turbo              # turbo | nano | english | multilingual
+                            # turbo (350M) and nano (110M) fit comfortably in 4 GB VRAM.
+                            # english (500M) and multilingual are larger; on a 4 GB GPU they
+                            # will usually fall back to CPU automatically (slower, still works).
+  language: en              # ISO 639-1 code, used by the multilingual model only
+  device: auto              # auto | cuda | cpu   (auto retries on CPU after a CUDA OOM)
+  exaggeration: 0.5         # 0 = flat, 1 = very expressive (english/multilingual models)
+  cfg_weight: 0.5
+  temperature: 0.8
+  max_chunk_chars: 250      # script is split into sentence chunks up to this many characters
+  pause_seconds: 0.3        # silence inserted between chunks
+
+lipsync:
+  backend: auto             # auto | wav2lip | latentsync | mock
+  auto_latentsync_min_vram_mb: 9000   # auto picks latentsync only above this much VRAM
+  wav2lip:
+    checkpoint: wav2lip/wav2lip_gan.pth   # relative to models_dir
+    pads: [0, 10, 0, 0]     # top, bottom, left, right padding around the detected face
+    resize_factor: 1        # 2 = process at half resolution (faster, less VRAM)
+    face_det_batch_size: 4
+    batch_size: 32
+    nosmooth: false
+  latentsync:
+    version: "1.5"          # 1.5 needs ~8 GB VRAM, 1.6 needs ~18 GB
+    inference_steps: 20
+    guidance_scale: 1.5
+    seed: 1247
+    enable_deepcache: true
+
+output:
+  crf: 18
+  preset: medium
+  audio_bitrate: 192k
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  max_upload_mb: 500
+
+worker_timeout_seconds: 7200

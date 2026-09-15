@@ -1,0 +1,9 @@
+# Orchestrator environment (lightweight). The heavy ML dependencies live in
+# their own virtual environments created by scripts/setup_envs.py.
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+pyyaml>=6.0
+huggingface_hub>=0.23
+uv>=0.4
+static-ffmpeg>=2.5

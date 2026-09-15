@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VedioAvatar</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#9aa3b2; --accent:#4f8cff; --ok:#3ecf8e; --bad:#ff5c5c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:14px; }
+  header h1 { margin:0; font-size:20px; }
+  header span { color:var(--muted); font-size:13px; }
+  main { display:grid; grid-template-columns: minmax(320px, 520px) 1fr; gap:24px; padding:24px 28px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+  input[type=file], select, textarea, input[type=text] { width:100%; background:#0c0e12; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font: inherit; }
+  textarea { min-height:150px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  button { margin-top:16px; background:var(--accent); color:white; border:0; border-radius:6px; padding:10px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .bar { height:10px; background:#0c0e12; border-radius:5px; overflow:hidden; border:1px solid var(--line); margin-top:8px; }
+  .bar > div { height:100%; width:0; background:var(--accent); transition: width .4s; }
+  .status { margin-top:10px; font-size:14px; }
+  .status b { text-transform: capitalize; }
+  pre { background:#0c0e12; border:1px solid var(--line); border-radius:6px; padding:10px; max-height:260px; overflow:auto; font-size:12px; white-space:pre-wrap; color:var(--muted); }
+  video { width:100%; max-height:60vh; background:black; border-radius:8px; margin-top:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+  td, th { padding:6px 8px; border-bottom:1px solid var(--line); text-align:left; }
+  tr { cursor:pointer; } tr:hover { background:#1e222b; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .muted { color:var(--muted); }
+  a { color:var(--accent); }
+  .health { font-size:12px; color:var(--muted); margin-top:6px; }
+</style>
+</head>
+<body>
+<header><h1>VedioAvatar</h1><span>face + voice clip + script &rarr; the same person reading the script</span></header>
+<main>
+  <section class="panel">
+    <form id="form">
+      <label>Source clip (face visible, speaking, 10–60 s)</label>
+      <input type="file" name="video" accept="video/*" required>
+      <label>Voice reference audio (optional, defaults to the clip's own audio)</label>
+      <input type="file" name="ref_audio" accept="audio/*,video/*">
+      <label>Script</label>
+      <textarea name="script" placeholder="Type or paste what the person should say..." required></textarea>
+      <div class="row">
+        <div><label>Voice model</label><select name="tts_model" id="tts_model"></select></div>
+        <div><label>Language (multilingual model)</label><input type="text" name="language" value="en"></div>
+      </div>
+      <div class="row">
+        <div><label>Lip-sync backend</label><select name="lipsync_backend" id="lipsync_backend"><option value="auto">auto</option></select></div>
+        <div><label>TTS backend</label><select name="tts_backend" id="tts_backend"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Expressiveness (english/multilingual)</label><input type="text" name="exaggeration" placeholder="0.5"></div>
+        <div><label>Temperature</label><input type="text" name="temperature" placeholder="0.8"></div>
+      </div>
+      <button id="submit" type="submit">Generate video</button>
+    </form>
+    <div class="health" id="health">checking server…</div>
+  </section>
+
+  <section>
+    <div class="panel" id="current" hidden>
+      <div class="status"><b id="stage">queued</b> <span id="message" class="muted"></span></div>
+      <div class="bar"><div id="progress"></div></div>
+      <div id="result"></div>
+      <details style="margin-top:12px"><summary class="muted">log</summary><pre id="log"></pre></details>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <b>Recent jobs</b>
+      <table id="jobs"><thead><tr><th>id</th><th>status</th><th>progress</th><th>created</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let watching = null, timer = null;
+
+async function loadHealth() {
+  try {
+    const h = await (await fetch('/api/health')).json();
+    const tts = $('tts_model'); tts.innerHTML = '';
+    for (const m of h.tts_models) tts.add(new Option(m, m, m === h.defaults.tts.model, m === h.defaults.tts.model));
+    const ls = $('lipsync_backend'); ls.innerHTML = '';
+    ls.add(new Option('auto', 'auto', true, true));
+    for (const b of h.backends.lipsync) ls.add(new Option(b, b));
+    const tb = $('tts_backend'); tb.innerHTML = '';
+    for (const b of h.backends.tts) tb.add(new Option(b, b, b === h.defaults.tts.backend, b === h.defaults.tts.backend));
+    const gpu = h.gpu ? `${h.gpu.name} (${h.gpu.vram_total_mb} MB)` : 'no NVIDIA GPU detected';
+    const bad = h.checks.filter(c => !c.ok).map(c => `<span class="bad">${c.name}</span>: ${c.detail}`);
+    $('health').innerHTML = `GPU: ${gpu} · queue: ${h.queue}` + (bad.length ? '<br>' + bad.join('<br>') : ' · <span class="ok">all backends ready</span>');
+  } catch (e) { $('health').textContent = 'server unreachable: ' + e; }
+}
+
+$('form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const fd = new FormData(ev.target);
+  for (const [k, v] of [...fd.entries()]) if (v === '' || (v instanceof File && !v.name)) fd.delete(k);
+  $('submit').disabled = true;
+  try {
+    const r = await fetch('/api/jobs', { method: 'POST', body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const job = await r.json();
+    watch(job.id);
+  } catch (e) { alert('Submit failed: ' + e.message); }
+  $('submit').disabled = false;
+});
+
+function watch(id) {
+  watching = id; $('current').hidden = false; $('result').innerHTML = '';
+  if (timer) clearInterval(timer);
+  timer = setInterval(poll, 2000); poll();
+}
+
+async function poll() {
+  if (!watching) return;
+  const job = await (await fetch('/api/jobs/' + watching)).json();
+  $('stage').textContent = job.status === 'running' ? (job.stage || 'running') : job.status;
+  $('message').textContent = job.message || '';
+  $('progress').style.width = (job.progress || 0) + '%';
+  $('log').textContent = await (await fetch(`/api/jobs/${watching}/log?tail=80`)).text();
+  if (job.status === 'done') {
+    $('result').innerHTML = `<video controls src="/api/jobs/${job.id}/result"></video><p><a href="/api/jobs/${job.id}/result" download>Download MP4</a></p>`;
+    clearInterval(timer); timer = null;
+  } else if (job.status === 'failed') {
+    $('result').innerHTML = `<p class="bad">${job.error}</p>`;
+    clearInterval(timer); timer = null;
+  }
+  refreshJobs();
+}
+
+async function refreshJobs() {
+  const jobs = await (await fetch('/api/jobs?limit=20')).json();
+  const tbody = $('jobs').querySelector('tbody'); tbody.innerHTML = '';
+  for (const j of jobs) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${j.id}</td><td class="${j.status === 'done' ? 'ok' : j.status === 'failed' ? 'bad' : ''}">${j.status}</td><td>${j.progress}%</td><td class="muted">${j.created_at.replace('T', ' ').slice(0, 19)}</td>`;
+    tr.onclick = () => watch(j.id);
+    tbody.appendChild(tr);
+  }
+}
+
+loadHealth(); refreshJobs(); setInterval(refreshJobs, 8000);
+</script>
+</body>
+</html>

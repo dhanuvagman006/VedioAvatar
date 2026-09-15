@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vedioavatar"
+version = "0.1.0"
+description = "Turn a 30 second face+voice clip and a script into a lip-synced video of that person reading the script."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "python-multipart>=0.0.9",
+  "pyyaml>=6.0",
+  "huggingface_hub>=0.23",
+  "uv>=0.4",
+  "static-ffmpeg>=2.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.scripts]
+avatar = "avatar_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["avatar_pipeline*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
