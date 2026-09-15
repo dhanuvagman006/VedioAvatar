@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Runs the VedioAvatar CLI with the project's virtual environment (no activation needed).
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -x "$HERE/.venv/bin/python" ]; then
+  echo "The virtual environment is missing. Run: ./setup.sh" >&2
+  exit 1
+fi
+exec "$HERE/.venv/bin/python" -m avatar_pipeline.cli "$@"

@@ -12,5 +12,5 @@ command -v git >/dev/null || { echo "git is required"; exit 1; }
 ./.venv/bin/python scripts/setup_envs.py "$@"
 ./.venv/bin/python -m avatar_pipeline.cli doctor || true
 echo
-echo "Ready. Activate with:  source .venv/bin/activate"
-echo "Then:  python -m avatar_pipeline.cli serve   (web UI on http://localhost:8000)"
+echo "Ready. Use ./avatar (wraps the CLI), or: source .venv/bin/activate"
+echo "Then:  ./avatar serve   (web UI on http://localhost:8000)"

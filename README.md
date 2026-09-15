@@ -43,17 +43,19 @@ the first run (the first run also downloads ~2 GB of Chatterbox weights).
 
 Prerequisites:
 
-1. **Python 3.10 or newer** from <https://www.python.org/downloads/> (tick *Add python.exe to
-   PATH*). If `python` opens the Microsoft Store, disable the alias under
-   *Settings > Apps > Advanced app settings > App execution aliases*.
+1. **Python 3.11** from <https://www.python.org/downloads/windows/>. In the installer tick
+   **Add python.exe to PATH** (and keep *py launcher* ticked). Or: `winget install -e --id Python.Python.3.11`.
+   A fresh Windows install has a fake `python` that only prints *"Python was not found; run without
+   arguments to install from the Microsoft Store"*: that is not Python, install the real one and
+   open a **new** terminal afterwards.
 2. **Git** from <https://git-scm.com/downloads>.
 3. A current NVIDIA driver (the one already installed is fine).
 4. About 12 GB of free disk and a decent connection (PyTorch CUDA wheels are ~2.5 GB each and
    are installed into two separate environments).
 
-Then, in PowerShell:
+Then, in **cmd or PowerShell**:
 
-```powershell
+```bat
 git clone https://github.com/dhanuvagman006/VedioAvatar.git
 cd VedioAvatar
 powershell -ExecutionPolicy Bypass -File setup.ps1
@@ -72,14 +74,17 @@ The extra Python versions are fetched automatically by [uv](https://github.com/a
 you do not have to install them yourself. ffmpeg is optional: if it is not on `PATH` the
 `static-ffmpeg` package downloads a build on first use.
 
-Everyday use afterwards:
+Everyday use afterwards, from the repo folder. `avatar.bat` runs the CLI with the project's
+virtual environment, so nothing needs activating (in PowerShell type `.\avatar` instead of `avatar`):
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m avatar_pipeline.cli doctor        # all rows except latentsync should say OK
-python -m avatar_pipeline.cli run --video examples\sample_face.mp4 --script examples\sample_script.txt --out out.mp4
-python -m avatar_pipeline.cli serve         # web UI + API on http://localhost:8000
+```bat
+avatar doctor        # all rows except latentsync should say OK
+avatar run --video examples\sample_face.mp4 --script examples\sample_script.txt --out out.mp4
+avatar serve         # web UI + API on http://localhost:8000
 ```
+
+If you prefer an activated shell: `.venv\Scripts\activate.bat` (cmd) or
+`.\.venv\Scripts\Activate.ps1` (PowerShell), then `python -m avatar_pipeline.cli ...`.
 
 ## Setup on Linux / WSL2
 
@@ -87,7 +92,7 @@ python -m avatar_pipeline.cli serve         # web UI + API on http://localhost:8
 sudo apt install -y git ffmpeg libgl1        # libgl1 is needed by opencv
 git clone https://github.com/dhanuvagman006/VedioAvatar.git && cd VedioAvatar
 ./setup.sh                                   # add "--lipsync both" on a >= 8 GB GPU
-source .venv/bin/activate
+./avatar doctor                              # ./avatar wraps the CLI; or: source .venv/bin/activate
 ```
 
 WSL2 uses the Windows NVIDIA driver directly; no driver install inside WSL is needed.
